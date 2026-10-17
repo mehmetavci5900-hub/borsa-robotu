@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Borsa & Kripto Robotu - Canlı Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; padding: 20px; margin: 0; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        h2 { color: #00e676; margin-top: 0; display: flex; align-items: center; justify-content: space-between; }
+        .live-badge { font-size: 12px; background: #00e676; color: #000; padding: 4px 8px; border-radius: 12px; font-weight: bold; }
+        .flex { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid-layout { grid-template-columns: 1fr; } }
+        input, select, button, textarea { padding: 10px; background: #2c2c2c; border: 1px solid #3d3d3d; color: #fff; border-radius: 6px; }
+        button { background: #00e676; color: #000; font-weight: bold; cursor: pointer; border: none; }
+        button:hover { background: #00c853; }
+        .btn-toggle { background: #333; color: #fff; }
+        .btn-toggle.active { background: #00e676; color: #000; }
+        textarea { width: 100%; height: 80px; box-sizing: border-box; margin-bottom: 10px; }
+        #chartContainer { width: 100%; height: 380px; border-radius: 8px; overflow: hidden; background: #1e1e1e; }
+        .price-display { font-size: 28px; font-weight: bold; margin-bottom: 10px; color: #00e676; }
+        .stat-item { background: #2a2a2a; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #00e676; }
+        .stat-title { font-size: 12px; color: #aaa; }
+        .stat-value { font-size: 18px; font-weight: bold; margin-top: 4px; }
+        
+        .news-list { max-height: 280px; overflow-y: auto; background: #181818; border-radius: 8px; padding: 10px; border: 1px solid #333; }
+        .news-card { padding: 10px; border-bottom: 1px solid #2a2a2a; transition: 0.2s; cursor: pointer; }
+        .news-card:hover { background: #252525; }
+        .news-date { font-size: 11px; color: #00e676; font-weight: bold; }
+        .news-title { font-size: 13px; color: #e0e0e0; margin-top: 4px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2>
+            <span>📊 Canlı Borsa & Kripto Takip Paneli</span>
+            <span class="live-badge">🟢 TRADINGVIEW CANLI</span>
+        </h2>
+        
+        <div class="flex">
+            <input type="text" id="symbol" value="BTCUSDT" placeholder="Örn: BTCUSDT, DOGETRY">
+            <select id="timeframe">
+                <option value="1m" selected>1 Dakikalık</option>
+                <option value="15m">15 Dakikalık</option>
+                <option value="1h">1 Saatlik</option>
+                <option value="1d">1 Günlük</option>
+            </select>
+            
+            <button id="btnLine" class="btn-toggle active" onclick="grafikTuruDegistir('line')">📈 Çizgi</button>
+            <button id="btnCandle" class="btn-toggle" onclick="grafikTuruDegistir('candle')">🕯️ Mum</button>
+            <button onclick="tumVerileriYenile()">Tüm Paneli Yenile</button>
+        </div>
+
+        <div class="grid-layout">
+            <div>
+                <div class="price-display" id="livePrice">$0.00</div>
+                <div id="chartContainer"></div>
+            </div>
+
+            <div>
+                <h3 style="margin-top: 0; color: #00e676;">📈 Teknik Analiz (RSI/SMA)</h3>
+                <div class="stat-item">
+                    <div class="stat-title">RSI (14 Göstergesi)</div>
+                    <div class="stat-value" id="rsiVal">Yükleniyor...</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-title">RSI Sinyal Durumu</div>
+                    <div class="stat-value" id="rsiSignal">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-title">SMA 50 Hareketli Ortalama</div>
+                    <div class="stat-value" id="smaVal">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-title">Genel Trend</div>
+                    <div class="stat-value" id="trendVal">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>
+            <span>📰 Bugünün Öne Çıkan Piyasa Haberleri</span>
+            <span class="live-badge" style="background:#29b6f6; color:#000;">🔄 CANLI HABER AKIŞI</span>
+        </h2>
+        <div class="news-list" id="newsFeed">
+            <p style="color: #888; text-align: center;">Günün haberleri taranıyor...</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🤖 Gemini AI Hibrit Piyasa Analizi</h2>
+        <textarea id="newsText" placeholder="Yukarıdaki haberlerden birine tıklayın veya buraya bir haber yazın..."></textarea>
+        <button id="aiBtn" onclick="aiAnalizEt()">Seçili Haberi + Tekniği Gemini'ye Analiz Ettir</button>
+        
+        <div id="resultBox" style="display: none; background: #222; border-radius: 10px; padding: 18px; border: 1px solid #333; margin-top: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 14px; color: #aaa;">AI POZİSYON TAVSİYESİ:</span>
+                <span id="resDecision" style="font-size: 20px; font-weight: bold; padding: 4px 12px; border-radius: 6px;">-</span>
+            </div>
+            
+            <p>⏳ <strong>Öngörülen Zaman Aralığı:</strong> <span id="resTimeframe" style="color: #29b6f6; font-weight: bold;">-</span></p>
+            <p>🎯 <strong>AI Hedef Fiyat:</strong> $<span id="resTarget" style="color: #00e676; font-weight: bold;">-</span></p>
+            <p>🛡️ <strong>Önerilen Stop-Loss:</strong> $<span id="resStop" style="color: #ff1744; font-weight: bold;">-</span></p>
+            <p>📊 <strong>Beklenen Piyasa Yönü:</strong> <span id="resDirection">-</span></p>
+            <hr style="border-color: #333; margin: 10px 0;">
+            <p style="margin-bottom: 0;">💬 <strong>Gerekçeli Analiz Özeti:</strong> <span id="resSummary" style="color: #ddd;">-</span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+let chart = null;
+let currentSeries = null;
+let mevcutTur = 'line';
+let mevcutVeri = [];
+let canlıTimer = null;
+
+function chartiKur() {
+    const container = document.getElementById('chartContainer');
+    container.innerHTML = '';
+
+    chart = LightweightCharts.createChart(container, {
+        width: container.clientWidth,
+        height: 380,
+        layout: { background: { type: 'solid', color: '#1e1e1e' }, textColor: '#d1d4dc' },
+        grid: { vertLines: { color: '#2B2B43' }, horzLines: { color: '#2B2B43' } },
+        timeScale: { timeVisible: true, secondsVisible: false }
+    });
+
+    window.addEventListener('resize', () => {
+        if (chart) chart.applyOptions({ width: container.clientWidth });
+    });
+}
+
+async function gunlukHaberleriGetir(coinName) {
+    const newsContainer = document.getElementById('newsFeed');
+    try {
+        const res = await fetch(`http://127.0.0.1:8000/api/v1/haberler?sembol=${coinName}`);
+        const data = await res.json();
+
+        if (data.status === 'success' && data.haberler.length > 0) {
+            newsContainer.innerHTML = '';
+            data.haberler.forEach(item => {
+                const newsDiv = document.createElement('div');
+                newsDiv.className = 'news-card';
+                newsDiv.innerHTML = `
+                    <div class="news-date">⏱️ ${item.source} - ${item.published}</div>
+                    <div class="news-title">${item.title}</div>
+                `;
+                newsDiv.onclick = () => {
+                    document.getElementById('newsText').value = item.title;
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                };
+                newsContainer.appendChild(newsDiv);
+            });
+        } else {
+            newsContainer.innerHTML = `<p style="color: #888; text-align: center;">Haber bulunamadı.</p>`;
+        }
+    } catch (e) {
+        newsContainer.innerHTML = '<p style="color: #888; text-align: center;">Haberler yüklenirken hata oluştu.</p>';
+    }
+}
+
+async function tumVerileriYenile() {
+    const sembol = document.getElementById('symbol').value.trim();
+    const tf = document.getElementById('timeframe').value;
+
+    if (canlıTimer) clearInterval(canlıTimer);
+    gunlukHaberleriGetir(sembol);
+
+    try {
+        const res = await fetch(`http://127.0.0.1:8000/api/v1/grafik-verisi?sembol=${sembol}&zaman_dilimi=${tf}&limit=100`);
+        const data = await res.json();
+
+        if (data.status === "success" && data.grafik_verileri.length > 0) {
+            mevcutVeri = data.grafik_verileri.sort((a, b) => a.time - b.time);
+            grafigiCiz();
+            
+            const sonKapanis = mevcutVeri[mevcutVeri.length - 1].close;
+            document.getElementById('livePrice').innerText = `$${sonKapanis.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+            canlıTimer = setInterval(async () => {
+                try {
+                    const fRes = await fetch(`http://127.0.0.1:8000/api/v1/fiyat?sembol=${sembol}`);
+                    const fData = await fRes.json();
+                    if (fData.status === "success" && fData.son_fiyat) {
+                        const sonFiyat = Number(fData.son_fiyat);
+                        document.getElementById('livePrice').innerText = `$${sonFiyat.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+                        if (currentSeries && mevcutVeri.length > 0) {
+                            const sonMum = { ...mevcutVeri[mevcutVeri.length - 1] };
+                            sonMum.close = sonFiyat;
+                            if (sonFiyat > sonMum.high) sonMum.high = sonFiyat;
+                            if (sonFiyat < sonMum.low) sonMum.low = sonFiyat;
+
+                            if (mevcutTur === 'line') {
+                                currentSeries.update({ time: Number(sonMum.time), value: sonFiyat });
+                            } else {
+                                currentSeries.update({
+                                    time: Number(sonMum.time), open: Number(sonMum.open), high: Number(sonMum.high), low: Number(sonMum.low), close: sonFiyat
+                                });
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }, 1000);
+        }
+    } catch (e) {}
+
+    try {
+        const tRes = await fetch(`http://127.0.0.1:8000/api/v1/teknik-analiz?sembol=${sembol}&zaman_dilimi=${tf}`);
+        const tData = await tRes.json();
+        if (tData.status === "success") {
+            document.getElementById('rsiVal').innerText = tData.rsi_14;
+            document.getElementById('rsiSignal').innerText = tData.rsi_sinyali;
+            document.getElementById('smaVal').innerText = `$${tData.sma_50}`;
+            document.getElementById('trendVal').innerText = tData.genel_trend;
+        }
+    } catch (e) {}
+}
+
+function grafigiCiz() {
+    chartiKur();
+    if (mevcutTur === 'line') {
+        currentSeries = chart.addLineSeries({ color: '#00e676', lineWidth: 2 });
+        currentSeries.setData(mevcutVeri.map(x => ({ time: Number(x.time), value: Number(x.close) })));
+    } else {
+        currentSeries = chart.addCandlestickSeries({
+            upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350'
+        });
+        currentSeries.setData(mevcutVeri.map(x => ({
+            time: Number(x.time), open: Number(x.open), high: Number(x.high), low: Number(x.low), close: Number(x.close)
+        })));
+    }
+    chart.timeScale().fitContent();
+}
+
+function grafikTuruDegistir(tur) {
+    mevcutTur = tur;
+    document.getElementById('btnLine').classList.toggle('active', tur === 'line');
+    document.getElementById('btnCandle').classList.toggle('active', tur === 'candle');
+    if (mevcutVeri.length > 0) grafigiCiz();
+}
+
+async function aiAnalizEt() {
+    const sembol = document.getElementById('symbol').value.trim();
+    const haber = document.getElementById('newsText').value;
+    const btn = document.getElementById('aiBtn');
+
+    if(!haber) {
+        alert("Lütfen önce listeden bir habere tıklayın veya metin alanına haber yazın!");
+        return;
+    }
+
+    btn.innerText = "⏳ Gemini Analiz Ediyor...";
+    btn.disabled = true;
+
+    const sonFiyat = mevcutVeri.length > 0 ? mevcutVeri[mevcutVeri.length - 1].close : 0;
+
+    const formData = new FormData();
+    formData.append('sembol', sembol);
+    formData.append('mevcut_fiyat', sonFiyat);
+    formData.append('haber_metni', haber);
+
+    try {
+        const aRes = await fetch(`http://127.0.0.1:8000/api/v1/haber-analiz`, { method: 'POST', body: formData });
+        const aData = await aRes.json();
+
+        if(aData.status === "success") {
+            const res = aData.analiz_sonucu;
+            const resDecElem = document.getElementById('resDecision');
+            
+            resDecElem.innerText = res.karar || "AL";
+            
+            if ((res.karar || "").includes("SAT")) {
+                resDecElem.style.background = "#ff1744";
+                resDecElem.style.color = "#fff";
+            } else if ((res.karar || "").includes("TUT")) {
+                resDecElem.style.background = "#ffc107";
+                resDecElem.style.color = "#000";
+            } else {
+                resDecElem.style.background = "#00e676";
+                resDecElem.style.color = "#000";
+            }
+
+            document.getElementById('resultBox').style.display = 'block';
+            document.getElementById('resTimeframe').innerText = res.tahmini_sure || "6-12 Saat İçinde";
+            document.getElementById('resTarget').innerText = res.hedef_fiyat;
+            document.getElementById('resStop').innerText = res.stop_loss;
+            document.getElementById('resDirection').innerText = res.beklenen_yon || "YÜKSELİŞ";
+            document.getElementById('resSummary').innerText = res.ai_ozeti;
+        } else {
+            alert("Sunucu Hatası: " + (aData.message || "Analiz yapılamadı."));
+        }
+    } catch(e) {
+        alert("Bağlantı hatası! Sunucunun (uvicorn) çalıştığından emin olun.");
+    } finally {
+        btn.innerText = "Seçili Haberi + Tekniği Gemini'ye Analiz Ettir";
+        btn.disabled = false;
+    }
+}
+
+tumVerileriYenile();
+</script>
+
+</body>
+</html>
