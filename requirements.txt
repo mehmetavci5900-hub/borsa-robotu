@@ -1,4 +1,9 @@
 fastapi
 uvicorn
 requests
+pandas
+ta
 feedparser
+sqlalchemy
+google-genai
+python-multipart
