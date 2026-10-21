@@ -191,7 +191,7 @@ def canlı_fiyat_getir(sembol: str = "BTCUSDT"):
 
 
 # =========================
-# 8) GRAFİK VERİSİ (HATA DÜZELTİLMİŞ HAL)
+# 8) GRAFİK VERİSİ
 # =========================
 @app.get("/api/v1/grafik-verisi")
 def grafik_verisi_getir(sembol: str = "BTCUSDT", zaman_dilimi: str = "1m", limit: int = 100):
@@ -316,15 +316,11 @@ def extract_first_json_object(text: str) -> Optional[dict]:
     if not text:
         return None
 
-    # Markdown/etiket vs olsa bile ilk JSON nesnesini bulmaya çalış
     match = re.search(r"\{[\s\S]*\}", text)
     if not match:
         return None
 
-    json_candidate = match.group(0)
-
-    # Fazladan trailing/leading karakter temizliği
-    json_candidate = json_candidate.strip()
+    json_candidate = match.group(0).strip()
 
     try:
         return json.loads(json_candidate)
@@ -333,7 +329,7 @@ def extract_first_json_object(text: str) -> Optional[dict]:
 
 
 # =========================
-# 11) HİBRİT AI ANALİZ
+# 11) HİBRİT AI ANALİZ (DÜZELTİLDİ)
 # =========================
 @app.post("/api/v1/haber-analiz")
 def haber_analiz_et(
@@ -359,7 +355,7 @@ def haber_analiz_et(
 
         ai_data: Optional[Dict[str, Any]] = None
 
-        # 2) Gemini Prompt (strict JSON talebi)
+        # 2) Gemini Prompt
         prompt = f"""
 Kripto Analiz Görevi:
 Sembol: {clean_symbol}
@@ -392,11 +388,9 @@ Ek açıklama, markdown, kod bloğu (```), veya başka metin ekleme.
             text = getattr(response, "text", None) or str(response)
             ai_data = extract_first_json_object(text)
 
-            # Eğer alanlar eksikse fallback’a geç
             if not ai_data or not isinstance(ai_data, dict):
                 ai_data = None
             else:
-                # karar/yon tutarlılığı (model saçmalarsa toparla)
                 karar = ai_data.get("karar")
                 yon = ai_data.get("beklenen_yon")
 
@@ -438,13 +432,4 @@ Ek açıklama, markdown, kod bloğu (```), veya başka metin ekleme.
                 stop_loss=float(ai_data.get("stop_loss", fiyat))
             )
             db.add(yeni_kayit)
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            logger.exception(f"DB kaydetme hatası: {e}")
-
-        return {"status": "success", "analiz_sonucu": ai_data, "teknik": teknik_veri}
-
-    except Exception as e:
-        logger.exception("haber_analiz_et hata aldı")
-        return {"status": "error", "message": str(e)}
+            db.
